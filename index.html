@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<!-- ==== Force-reload local JS / CSS / HTML on every visit (no browser cache) ==== -->
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+		<meta http-equiv="Pragma" content="no-cache" />
+		<meta http-equiv="Expires" content="0" />
+		<script>
+			// Cache-buster: append a unique ?v=<timestamp> to every local script so the
+			// browser must re-fetch them. document.write() inside <head> keeps the
+			// original synchronous load order intact.
+			(function(){
+				var v = '?v=' + Date.now();
+				document.write('<script src="js/function.js' + v + '"><\/script>');
+				document.write('<script src="js/card_info.js' + v + '"><\/script>');
+			})();
+		</script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<title>Vividz Deck Editor</title>
+	</head>
+	<style>
+		 input[type=checkbox] {
+            height: 18px;
+            width: 18px;
+        }
+		.icon_img {
+			height: 16px;
+			border: none !important;
+			border-radius: 0px !important;
+			margin-top: 2px;
+			margin-left: 2px;
+		}
+		img {
+			border-style: solid;
+			border-width: 1px;
+			border-radius: 10px;
+		}
+		* {
+			font-size: 16px;
+			font-family:sans-serif;;
+		}
+
+		input[type="file"] {
+		    position: absolute;
+		    width: 1px;
+		    height: 1px;
+		    padding: 0;
+		    margin: -1px;
+		    overflow: hidden;
+		    clip: rect(0,0,0,0);
+		    border: 0;
+		}
+
+		button ,.custom-file-upload{
+			height: 50px;
+			background-color: white; /* Green */
+			border: none;
+			color: black;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			font-size: 16px;
+			margin: 4px 2px;
+			border-style: solid;
+			border-width: 1px;
+			border-radius: 10px;
+			cursor: pointer;
+		}
+		canvas {
+			width: 195px !important;
+			height: 195px !important;
+		}
+
+		span, input[type='checkbox'] {
+			user-select: none;
+			cursor: pointer;
+		}
+
+		#window-container, #window-container-list, #window-container-code, #window-container-comment{
+	    display: none;
+	    position: fixed;
+	    left: 0;
+	    top: 0;
+	    width: 100%;
+	    height: 100%;
+	    background-color: rgba(0,0,0,0.5);
+	}
+	       
+	#window-pop{
+	    background: white;
+	    z-index: 1;
+        margin: 20px;
+	    overflow: auto;
+	    border-radius: 20px;
+	    width: 1860px;;
+	    height: 900px;
+	}
+
+	#window-pop-list{
+	    background: white;
+	    z-index: 1;
+        margin: 50px 20%;
+	    overflow: auto;
+	    border-radius: 20px;
+	}
+
+	#window-pop-code, #window-pop-comment{
+	    background: white;
+	    z-index: 1;
+        margin: 50px 30%;
+	    overflow: auto;
+	    border-radius: 20px;
+	}
+	        
+	.window-content {
+	    margin: 30px;
+	}
+
+	span {
+	    display: inline-block;
+	    vertical-align: middle;
+	    line-height: normal;
+	}
+
+	textarea {
+	    width: 80%;
+	    height: 60%;
+	}
+
+	#deckName {
+	    font-size: 20px;
+    	font-weight: bold;
+    	margin-top: -12px;
+    	margin-left: 0px;
+    	visibility: hidden;
+	}
+
+	/* === Deck View === */
+	#deckViewCharts td { padding: 0 10px; text-align: center; }
+	#deckViewTop img, #deckViewMain img {
+		width: 164px;
+		height: 230px;
+		border-radius: 12px;
+		position: absolute;
+	}
+	#deckViewTop { position: relative; height: 245px; }
+	#deckViewMain { position: relative; }
+
+	/* === Dark Mode Toggle Button === */
+	#darkModeToggle {
+		cursor: pointer;
+		background: transparent;
+		border: 1px solid #888;
+		border-radius: 6px;
+		padding: 2px 10px;
+		height: 24px;
+		line-height: 18px;
+		font-size: 14px;
+		margin-left: 8px;
+		user-select: none;
+		vertical-align: middle;
+		transition: background 0.2s, color 0.2s, border-color 0.2s;
+	}
+	#darkModeToggle:hover { background: rgba(0,0,0,0.08); }
+
+	/* === big_pic lock indicator (when ALT is held) === */
+	body.bigpic-locked #cardinformation {
+		outline: 3px solid #ffb300;
+		outline-offset: 2px;
+		box-shadow: 0 0 16px rgba(255, 179, 0, 0.65);
+	}
+	body.bigpic-locked #cardinformation::before {
+		content: "🔒 LOCKED — release ALT to unlock";
+		position: absolute;
+		top: -28px; left: 0;
+		background: #ffb300;
+		color: #000;
+		font-weight: 700;
+		font-size: 12px;
+		padding: 3px 8px;
+		border-radius: 4px;
+		z-index: 1000;
+		pointer-events: none;
+		white-space: nowrap;
+	}
+
+	/* Persistent usage hint shown on the preview popup */
+	#bigPicHint {
+		display: inline-block;
+		font-size: 11px;
+		color: #555;
+		background: #fff8e1;
+		border: 1px solid #ffd54f;
+		border-radius: 4px;
+		padding: 2px 6px;
+		margin: 4px 0 4px 8px;
+		vertical-align: middle;
+		user-select: none;
+	}
+	body.dark-mode #bigPicHint {
+		color: #ffd54f;
+		background: #3a2e00;
+		border-color: #c79100;
+	}
+
+	/* Inline ALT-lock tip near the language bar */
+	.alt-lock-tip {
+		display: inline-block;
+		font-size: 12px;
+		color: #b26a00;
+		background: #fff8e1;
+		border: 1px dashed #ffb300;
+		border-radius: 4px;
+		padding: 1px 6px;
+		margin: 0 6px;
+		vertical-align: middle;
+	}
+	body.dark-mode .alt-lock-tip {
+		color: #ffd54f;
+		background: #3a2e00;
+		border-color: #c79100;
+	}
+
+	/* === Dark Mode transition === */
+	body, button, .custom-file-upload, select, input[type="text"], textarea,
+	#window-pop, #window-pop-list, #window-pop-code, #window-pop-comment, #cardinformation {
+		transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		body, button, .custom-file-upload, select, input[type="text"], textarea,
+		#window-pop, #window-pop-list, #window-pop-code, #window-pop-comment, #cardinformation { transition: none; }
+	}
+
+	/* === Dark Mode Theme === */
+	body.dark-mode {
+		background-color: #1a1a1a;
+		color: #e6e6e6;
+	}
+	body.dark-mode,
+	body.dark-mode * { color: #e6e6e6; }
+	body.dark-mode a { color: #4da3ff; }
+	body.dark-mode a:visited { color: #b48bff; }
+
+	body.dark-mode button,
+	body.dark-mode .custom-file-upload {
+		background-color: #2f2f2f;
+		color: #e6e6e6;
+		border-color: #555;
+	}
+	body.dark-mode button:hover,
+	body.dark-mode .custom-file-upload:hover {
+		background-color: #3d3d3d;
+	}
+	body.dark-mode select,
+	body.dark-mode input[type="text"],
+	body.dark-mode textarea {
+		background-color: #2a2a2a;
+		color: #e6e6e6;
+		border: 1px solid #555;
+	}
+
+	body.dark-mode #window-container,
+	body.dark-mode #window-container-list,
+	body.dark-mode #window-container-code,
+	body.dark-mode #window-container-comment {
+		background-color: rgba(0,0,0,0.75);
+	}
+	body.dark-mode #window-pop,
+	body.dark-mode #window-pop-list,
+	body.dark-mode #window-pop-code,
+	body.dark-mode #window-pop-comment {
+		background: #242424;
+		color: #e6e6e6;
+	}
+
+	body.dark-mode #cardinformation {
+		background-color: #242424 !important;
+		border-color: #555 !important;
+	}
+	body.dark-mode #cardinformation table,
+	body.dark-mode #cardinformation td {
+		border-color: #555 !important;
+	}
+
+	body.dark-mode img { border-color: #555; }
+
+	body.dark-mode #darkModeToggle {
+		border-color: #888;
+		color: #e6e6e6;
+	}
+	body.dark-mode #darkModeToggle:hover { background: rgba(255,255,255,0.1); }
+
+	/* Destructive buttons keep white text in both themes */
+	body.dark-mode #resetAllDecksBtn,
+	body.dark-mode #resetAllCommentsBtn { background-color: #c0392b; color: #fff; }
+	</style>
+	<body>
+		<script>
+			// === Dark Mode: apply early to avoid a flash of the light theme ===
+			// Priority: saved preference in localStorage > system prefers-color-scheme > light
+			var DARK_MODE_KEY = 'vividz_dark_mode';
+			try {
+				var saved = localStorage.getItem(DARK_MODE_KEY);
+				var wantDark = false;
+				if (saved === '1') wantDark = true;
+				else if (saved === null && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) wantDark = true;
+				if (wantDark) document.body.classList.add('dark-mode');
+			} catch(e) {}
+
+			// Follow the system theme unless the user has picked one manually
+			try {
+				var mql = window.matchMedia('(prefers-color-scheme: dark)');
+				if (mql && mql.addEventListener) {
+					mql.addEventListener('change', function(e){
+						if (localStorage.getItem(DARK_MODE_KEY) !== null) return;
+						document.body.classList.toggle('dark-mode', e.matches);
+						if (typeof updateDarkModeButton === 'function') updateDarkModeButton();
+						if (typeof updateChartsTheme === 'function') updateChartsTheme();
+						if (typeof applyDarkModeImages === 'function') applyDarkModeImages();
+					});
+				}
+			} catch(e) {}
+
+			function getLegendColor() {
+				return document.body.classList.contains('dark-mode') ? '#e6e6e6' : 'rgb(0, 0, 0)';
+			}
+
+			function updateChartsTheme() {
+				var color = getLegendColor();
+				[typeof costobj!=='undefined'?costobj:null,
+				 typeof typeobj!=='undefined'?typeobj:null,
+				 typeof missionobj!=='undefined'?missionobj:null].forEach(function(obj){
+					if (obj && obj.options && obj.options.plugins && obj.options.plugins.legend && obj.options.plugins.legend.labels) {
+						obj.options.plugins.legend.labels.color = color;
+						obj.update();
+					}
+				});
+			}
+
+			function updateDarkModeButton() {
+				var btn = document.getElementById('darkModeToggle');
+				if (!btn) return;
+				btn.textContent = document.body.classList.contains('dark-mode') ? '☀ Light' : '🌙 Dark';
+			}
+
+			// === Dark Mode: swap images (empty.jpg / cancel_icon.png / larrow.png / rarrow.png) ===
+			function swapImageForDarkMode(img, isDark) {
+				if (!img || !img.getAttribute) return;
+				var src = img.getAttribute('src');
+				if (!src) return;
+				if (isDark) {
+					if (/(^|\/)empty\.jpg(\?|$)/.test(src)) {
+						img.setAttribute('src', src.replace(/empty\.jpg/, 'empty_black.jpg'));
+					} else if (/(^|\/)cancel_icon\.png(\?|$)/.test(src)) {
+						img.setAttribute('src', src.replace(/cancel_icon\.png/, 'cancel_icon_black.png'));
+					} else if (/(^|\/)larrow\.png(\?|$)/.test(src)) {
+						img.setAttribute('src', src.replace(/larrow\.png/, 'larrow_black.png'));
+					} else if (/(^|\/)rarrow\.png(\?|$)/.test(src)) {
+						img.setAttribute('src', src.replace(/rarrow\.png/, 'rarrow_black.png'));
+					}
+				} else {
+					if (/empty_black\.jpg/.test(src)) {
+						img.setAttribute('src', src.replace(/empty_black\.jpg/, 'empty.jpg'));
+					} else if (/cancel_icon_black\.png/.test(src)) {
+						img.setAttribute('src', src.replace(/cancel_icon_black\.png/, 'cancel_icon.png'));
+					} else if (/larrow_black\.png/.test(src)) {
+						img.setAttribute('src', src.replace(/larrow_black\.png/, 'larrow.png'));
+					} else if (/rarrow_black\.png/.test(src)) {
+						img.setAttribute('src', src.replace(/rarrow_black\.png/, 'rarrow.png'));
+					}
+				}
+			}
+			function applyDarkModeImages() {
+				var isDark = document.body.classList.contains('dark-mode');
+				var imgs = document.getElementsByTagName('img');
+				for (var i = 0; i < imgs.length; i++) swapImageForDarkMode(imgs[i], isDark);
+			}
+
+			// === Image performance: loading=lazy and decoding=async ===
+			function enhanceImage(img) {
+				if (!img || !img.setAttribute) return;
+				if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
+				if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
+			}
+			function applyImageLazyLoading() {
+				var imgs = document.getElementsByTagName('img');
+				for (var i = 0; i < imgs.length; i++) enhanceImage(imgs[i]);
+			}
+
+			// Watch dynamic src changes and newly added <img> nodes
+			(function(){
+				if (!window.MutationObserver) return;
+				var obs = new MutationObserver(function(muts){
+					var isDark = document.body.classList.contains('dark-mode');
+					muts.forEach(function(m){
+						if (m.type === 'attributes' && m.attributeName === 'src' && m.target && m.target.tagName === 'IMG') {
+							swapImageForDarkMode(m.target, isDark);
+							enhanceImage(m.target);
+						} else if (m.type === 'childList') {
+							m.addedNodes.forEach(function(n){
+								if (n.nodeType !== 1) return;
+								if (n.tagName === 'IMG') { swapImageForDarkMode(n, isDark); enhanceImage(n); }
+								else if (n.querySelectorAll) {
+									var sub = n.querySelectorAll('img');
+									for (var i = 0; i < sub.length; i++) { swapImageForDarkMode(sub[i], isDark); enhanceImage(sub[i]); }
+								}
+							});
+						}
+					});
+				});
+				function startObserving() {
+					obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+					applyDarkModeImages();
+					applyImageLazyLoading();
+				}
+				if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObserving);
+				else startObserving();
+			})();
+
+			function toggleDarkMode() {
+				document.body.classList.toggle('dark-mode');
+				var isDark = document.body.classList.contains('dark-mode');
+				try { localStorage.setItem(DARK_MODE_KEY, isDark ? '1' : '0'); } catch(e) {}
+				updateDarkModeButton();
+				updateChartsTheme();
+				applyDarkModeImages();
+			}
+		</script>
+		<script>
+			var page = 0;
+			var deckNamelist = [];
+			var sort_method = 0;
+
+			var rdeckArr = [];
+			var adeckArr = [];
+			var mdeckArr = [];
+			var deckArr = [];
+
+			$( document ).ready(function() {
+				onLoading();
+				showrdeck();
+				updateDarkModeButton();
+				updateChartsTheme();
+			});
+
+			function customizeWindowEvent(x) {
+				if(x == "view")
+				{
+					if(deckArr.length == 0 && adeckArr.length == 0 && mdeckArr.length == 0)
+					{
+						alert("Deck is empty.");
+						return;
+					}
+
+					showDeckView();
+
+	            	var popup_window = document.getElementById("window-container");
+
+	            	popup_window.style.display = "block";
+
+		            window.onmousedown = function close(e) {
+		                if (e.target == popup_window) {
+		                    popup_window.style.display = "none";
+		                }
+		            }
+	            }
+	            else if(x == "code")
+				{
+	            	var popup_window_code = document.getElementById("window-container-code");
+
+	            	popup_window_code.style.display = "block";
+
+		            window.onmousedown = function close(e) {
+		                if (e.target == popup_window_code) {
+		                    popup_window_code.style.display = "none";
+		                }
+		            }
+	            }
+	            else if(x == "comment")
+				{
+	            	var popup_window_comment = document.getElementById("window-container-comment");
+
+	            	popup_window_comment.style.display = "block";
+
+		            window.onmousedown = function close(e) {
+		                if (e.target == popup_window_comment) {
+		                    popup_window_comment.style.display = "none";
+		                }
+		            }
+	            }
+	            else//list
+	            {
+	            	var popup_window_list = document.getElementById("window-container-list");
+
+	            	popup_window_list.style.display = "block";
+
+	            	showList();
+
+		            window.onmousedown = function close(e) {
+		                if (e.target == popup_window_list) {
+		                    popup_window_list.style.display = "none";
+		                }
+		            }
+	            }
+	        }
+
+		</script>
+		<div id='cardinformation' style='border: solid; border-width: 2px;position: absolute;z-index: 999; background-color:white; visibility: hidden;margin: 150px 0px 0px 40px;'>
+			<span id="bigPicHint" title="Hold ALT to keep this preview open and frozen on the current card.">💡 Hold <b>ALT</b> to lock this preview · click the image to add it to the deck</span>
+			<img id="cross" width="30px" height="30px" style='border-style: none; float: right; margin: 2px 4px 0px 0px;' src="img/cancel_icon.png" onclick="if(!window.bigPicLocked) $('#cardinformation').css('visibility', 'hidden');" onmouseover="if(!window.bigPicLocked) $('#cardinformation').css('visibility', 'hidden');">
+			<table>
+				<tr>
+					<td>
+						<img width="360px" height="504px" id="big_pic" style="cursor: pointer;" alt="" src="img/card_back.jpg" onclick="addDeck(this)">
+					</td>
+					<td style="vertical-align:text-top;">
+						<table id="infoTable" width="360px" border="1" style="border: solid; border-width: 1px">
+						</table>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<table width="1850px" height="600px">
+			<tr>
+				<td>
+					<span style="cursor: default;">Language
+						<select id="selectLang">
+							<option value="JP">日本語</option>
+							<!-- <option value="TW">繁體中文</option> -->
+					    </select>
+					    <button id="darkModeToggle" type="button" onclick="toggleDarkMode()" title="切換黑暗模式">🌙 Dark</button>
+					    <span class="alt-lock-tip" title="Hold ALT to lock the card preview window — it won't close or change card while ALT is held.">🔒 Hold <b>ALT</b> = lock card preview</span>
+					    <br>※Right-click a card in the deck to add another copy.
+					    <br><br>Deck List
+					    <select id="selectDeck" onchange="selectDeck();">
+					    	<option value="">--Select Deck--</option>
+					    </select>
+					    <button style="height: 20px;" onclick="$('#cardinformation').css('visibility', 'hidden');downloadBlob('output', '')">Add</button>
+					    <button style="height: 20px;" onclick="$('#cardinformation').css('visibility', 'hidden');deletedecklist();">Delete</button>
+					    Sort:
+					    <select id="selectSort" onchange="selectSort();">
+					    	<option value=0>Cost Order</option>
+					    	<option value=1>Mission Order</option>
+					    	<option value=2>Type Order</option>
+					    </select>
+					</span>
+				</td>
+				<td>
+					<button onclick="$('#cardinformation').css('visibility', 'hidden');cleardeck()">Clear Deck</button>
+					<button onclick="$('#cardinformation').css('visibility', 'hidden');customizeWindowEvent('view');">Deck View</button>
+					<!-- <button style="float: right;" onclick="checkDeck();">Exam</button> -->
+					<button onclick="$('#cardinformation').css('visibility', 'hidden');customizeWindowEvent('list');">Card List</button>
+					<button onclick="$('#cardinformation').css('visibility', 'hidden');openCommentManager();">Comment</button>
+					<button style="float: right" onclick="showVersion();">About</button>
+				</td>
+			</tr>
+			<tr>
+				<td style="vertical-align:bottom;">
+					<table style="margin-bottom: -5px;">
+						<tr>
+							<td>
+								<img id="adeck_0" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,0 , adeckArr)">
+								<img style="border-style: none;" id="empty" width="75px" height="105px" src="img/empty.jpg">
+								<img id="mdeck_0" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,0 , mdeckArr)">
+								<img id="mdeck_1" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,1 , mdeckArr)">
+								<img id="mdeck_2" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,2 , mdeckArr)">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_0" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,0 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_1" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,1 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_2" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,2 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_3" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,3 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_4" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,4 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_5" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,5 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_6" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,6 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_7" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,7 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_8" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,8 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_9" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,9 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_10" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,10 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_11" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,11 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_12" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,12 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_13" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,13 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_14" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,14 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_15" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,15 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_16" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,16 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_17" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,17 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_18" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,18 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_19" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,19 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_20" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,20 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_21" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,21 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_22" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,22 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_23" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,23 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_24" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,24 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_25" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,25 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_26" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,26 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_27" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,27 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_28" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,28 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_29" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,29 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+					</table>
+				</td>		
+				<td style="vertical-align:text-top">
+					<input type="checkbox" id="account" checked><span onclick="clickSpan(this)">アカウント </span>&emsp;&emsp;<input type="checkbox" id="mission" checked><span onclick="clickSpan(this)">ミッション </span>&emsp;&emsp;<input type="checkbox" id="character" checked><span onclick="clickSpan(this)">キャラ </span>&emsp;&emsp;<input type="checkbox" id="event" checked><span onclick="clickSpan(this)">イベント </span>&emsp;&emsp;<input type="checkbox" id="engage" checked><span onclick="clickSpan(this)">エンゲージ </span>
+					<br><br>
+					<input type="checkbox" id="no_mission" checked><span onclick="clickSpan(this)">-- </span>&emsp;&emsp;<input type="checkbox" id="A_mission" checked><span onclick="clickSpan(this)">A </span>&emsp;&emsp;<input type="checkbox" id="B_mission" checked><span onclick="clickSpan(this)">B </span>&emsp;&emsp;<input type="checkbox" id="C_mission" checked><span onclick="clickSpan(this)">C </span>&emsp;&emsp;<input type="checkbox" id="D_mission" checked><span onclick="clickSpan(this)">D </span>&emsp;&emsp;<input type="checkbox" id="E_mission" checked><span onclick="clickSpan(this)">E </span>&emsp;&emsp;<input type="checkbox" id="F_mission" checked><span onclick="clickSpan(this)">F </span>&emsp;&emsp;<input type="checkbox" id="star_mission" checked><span onclick="clickSpan(this)">☆ </span>
+					<br><br>
+					<input type="checkbox" id="scout" checked><span onclick="clickSpan(this)"><img width="25px" height="25px" src="img/ico_scout.png"></span> &emsp;&emsp;<input type="checkbox" id="costdown" checked><span onclick="clickSpan(this)"><img width="25px" height="25px" src="img/ico_costdown.png"></span> &emsp;&emsp;<input type="checkbox" id="ban" checked><span onclick="clickSpan(this)"><img width="25px" height="25px" src="img/ico_attack_ban.png"></span>
+					<br><br>
+					アカウント情報
+					<select id="selectAccount">
+						<option value="0">--All Account--</option>
+						<option value="キョウカ">キョウカ</option>
+						<option value="玲">玲</option>
+						<option value="らぶり">らぶり</option>
+						<option value="まりあ">まりあ</option>
+						<option value="シェリー">シェリー</option>
+						<option value="ストリーマー">ストリーマー</option>
+						<option value="キョウカ/クリスマス">キョウカ/クリスマス</option>
+						<option value="玲/クリスマス">玲/クリスマス</option>
+						<option value="らぶり/クリスマス">らぶり/クリスマス</option>
+						<option value="まりあ/クリスマス">まりあ/クリスマス</option>
+						<option value="奏武：トリック">奏武：トリック</option>
+						<option value="シェリー/クリスマス">シェリー/クリスマス</option>
+						<option value="ストリーマー/クリスマス">ストリーマー/クリスマス</option>
+						<option value="ノイ">ノイ</option>
+						<option value="エネミー">エネミー</option>
+						<option value="キョウカ/夏休み">キョウカ/夏休み</option>
+						<option value="玲/夏休み">玲/夏休み</option>
+						<option value="らぶり/夏休み">らぶり/夏休み</option>
+						<option value="まりあ/夏休み">まりあ/夏休み</option>
+						<option value="シェリー/夏休み">シェリー/夏休み</option>
+						<option value="ノイ/夏休み">ノイ/夏休み</option>
+						<option value="ストリーマー/夏休み">ストリーマー/夏休み</option>
+						<option value="エネミー/夏休み">エネミー/夏休み</option>
+						<option value="ルイン">ルイン</option>
+						<option value="やむ">やむ</option>
+						<option value="のりプロ">のりプロ</option>
+				    </select>
+				    &emsp;&emsp;
+				    特徴
+				    <select id="selectFeature">
+						<option value="0">--All Feature--</option>
+						<option value="サイバー">サイバー</option>
+						<option value="ファンタジー">ファンタジー</option>
+						<option value="ファンタジー/魔法">ファンタジー/魔法</option>
+						<option value="花鳥風月">花鳥風月</option>
+						<option value="リーダー">リーダー</option>
+						<option value="１期生">１期生</option>
+						<option value="リーダー/１期生">リーダー/１期生</option>
+						<option value="ゲーマーズ">ゲーマーズ</option>
+						<option value="ゲーマーズ/リーダー">ゲーマーズ/リーダー</option>
+				    </select>
+					<br><br>
+					キーワード検索 <input type="text" id="textsearch" size="51">
+					<br><br>
+					商品檢索
+					<select id="selectProduct">
+						<option value="0">--All Product--</option>
+						<option value="VB02">[VB02] ブースターパック第2弾 サイバー：エクステンド</option>
+						<option value="VB01">[VB01] ブースターパック第1弾 サイバー：ジェネシス</option>
+					    <option value="VD02">[VD02] スタートデッキ 天憧 玲</option>
+					    <option value="VD01">[VD01] スタートデッキ 最上 キョウカ</option>
+				   </select>
+				   <br><br>
+				   <button onclick="search();">Search</button>&emsp;&emsp;<button onclick="checkall();">Select All</button>&emsp;&emsp;<button onclick="uncheckall();">Clear All</button>
+				   <br><br>
+				   Total: <span id="totalCard" style="cursor: default;">0</span>
+				</td>
+			</tr>
+			<tr>
+			<!-- 	<td style="vertical-align:text-top" height="500px">
+					<table id="infoTable" width="360px" border="1" style="border: solid; border-width: 1px">
+					</table>
+				</td> -->
+				<td style="vertical-align:text-top">
+					<table>
+						<tr>
+							<td>
+								<img id="deck_30" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,30 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_31" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,31 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_32" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,32 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_33" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,33 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_34" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,34 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_35" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,35 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_36" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,36 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_37" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,37 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_38" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,38 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_39" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,39 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_40" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,40 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_41" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,41 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_42" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,42 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_43" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,43 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_44" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,44 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_45" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,45 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_46" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,46 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_47" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,47 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_48" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,48 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_49" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,49 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_50" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,50 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_51" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,51 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_52" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,52 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_53" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,53 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_54" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,54 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_55" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,55 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_56" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,56 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_57" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,57 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_58" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,58 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_59" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,59 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<img id="deck_60" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,60 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_61" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,61 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_62" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,62 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_63" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,63 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_64" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,64 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_65" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,65 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_66" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,66 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_67" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,67 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_68" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,68 , deckArr)" oncontextmenu="addDeck(this); return false;">
+								<img id="deck_69" width="75px" height="105px" src="img/empty.jpg" onmouseover="onmouseShow(this, 'deck');" onclick="delDeck(this,69 , deckArr)" oncontextmenu="addDeck(this); return false;">
+							</td>
+						</tr>
+					</table>
+				</td>
+				<td style="vertical-align:top">
+					<table>
+						<tr>
+							<td >
+								Page: <span style="cursor: default;" id="page"></span>
+							</td>
+						</tr>
+						<tr>
+							<table>
+								<tr>
+									<td rowspan="2">
+										<img id="larrow" style="cursor: pointer;" height="172px" src="img/larrow.png" onclick="changePage('back')">
+									</td>
+									<td style="height: 180px;vertical-align: bottom;">
+										<img id="rdeck_0" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_1" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_2" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_3" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_4" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+									</td>
+									<td rowspan="2">
+										<img id="rarrow" style="cursor: pointer;" height="172px" src="img/rarrow.png" onclick="changePage('next')">
+									</td>
+								</tr>
+								<tr>
+									<td style="height: 180px;vertical-align: bottom;">
+										<img id="rdeck_5" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_6" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_7" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_8" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+										<img id="rdeck_9" onmouseover="onmouseShow(this, 'search');" onclick="addDeck(this)" alt="" height="172px" width="124px">
+									</td>
+								</tr>
+							</table>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+		<div id="window-container-list">
+			<div id="window-pop-list">
+				<div id="decklist" style="height: 750px" class="window-content">
+				</div>
+			</div>
+		</div>
+		<div id="window-container-code">
+			<div id="window-pop-code">
+				<div id="deckcode" style="height: 750px; text-align: center;" class="window-content">
+					Deck Title
+					<br><br>
+					<input align="left" style="width: 80%;" type="text" id="deckTitle" value="Simple Deck" maxlength="64">
+					<br><br>
+					Deck Code
+					<br><br>
+					<textarea id="textCode" rows="4" cols="50"></textarea>
+					<div id="deckStr">&emsp;</div>
+					<br>
+					<div style="display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px; max-width: 430px; margin: 0 auto;">
+						<button style="width: 200px; height: 50px; box-sizing: border-box; margin: 0;" onclick="downloadBlob('', 'text/csv;charset=utf-8;')">Download Deck</button>
+						<label for="fileinput" class="custom-file-upload" style="width: 200px; height: 50px; box-sizing: border-box; padding: 0; margin: 0; display: inline-flex; align-items: center; justify-content: center;">
+						    Upload Deck
+						</label>
+						<input style="display: none;" id="fileinput" type="file"/>
+						<button style="width: 200px; height: 50px; box-sizing: border-box; margin: 0;" onclick="copyClipboard();">Copy to clipboard</button>
+						<button style="width: 200px; height: 50px; box-sizing: border-box; margin: 0;" onclick="addDecklist();">Add to deck list</button>
+						<button id="resetAllDecksBtn" style="width: 410px; height: 50px; box-sizing: border-box; margin: 0; background-color: #c0392b; color: #fff; border: 2px solid #962d22; border-radius: 6px; font-weight: bold; box-shadow: 0 2px 6px rgba(192,57,43,0.4); cursor: pointer;" onclick="resetDefault();" title="Delete every custom deck (cannot be undone)">⚠ Reset All Decks</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="window-container-comment">
+			<div id="window-pop-comment">
+				<div id="commentcode" style="height: 800px; text-align: center;" class="window-content">
+					Comment Profile (JSON)
+					<br><br>
+					<textarea style="height: 400px;" id="textCommentCode" rows="4" cols="50"></textarea>
+					<div id="commentStr">&emsp;</div>
+					<br>
+					<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 430px; margin: 0 auto;">
+						<button style="width: 200px; height: 50px; box-sizing: border-box; margin: 0;" onclick="downloadCommentBlob('text/plain;charset=utf-8;')">Download Comment</button>
+						<label for="commentFileinput" class="custom-file-upload" style="width: 200px; height: 50px; box-sizing: border-box; padding: 0; margin: 0; display: inline-flex; align-items: center; justify-content: center;">
+						    Upload Comment
+						</label>
+						<input style="display: none;" id="commentFileinput" type="file"/>
+						<button style="width: 200px; height: 50px; box-sizing: border-box; margin: 0;" onclick="copyCommentClipboard();">Copy to clipboard</button>
+						<button id="resetAllCommentsBtn" style="width: 200px; height: 50px; box-sizing: border-box; margin: 0; background-color: #c0392b; color: #fff; border: none;" onclick="resetAllCommentsFromManager();" title="Delete every saved comment (cannot be undone)">Reset All Comments</button>
+					</div>
+					<div style="margin-top: 18px; padding-top: 12px; border-top: 1px dashed #aaa;">
+						<div style="margin-bottom: 6px;">Add / Update a single comment</div>
+						<input type="text" id="addCommentId" placeholder="Card ID (e.g. VD01-001)" style="width: 38%;" maxlength="64">
+						<input type="text" id="addCommentText" placeholder="Comment" style="width: 38%;" maxlength="500">
+						<button style="width: 130px; margin-left: 6px;" onclick="addSingleComment();">Add Comment</button>
+					</div>
+					<div style="margin-top: 10px;">
+						<div style="margin-bottom: 6px;">Delete a single comment</div>
+						<input type="text" id="deleteCommentId" placeholder="Card ID to delete" style="width: 78%;" maxlength="64">
+						<button style="width: 130px; margin-left: 6px;" onclick="deleteSingleComment();">Delete Comment</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="window-container">
+            <div id="window-pop">
+                <div class="window-content">
+					<table id="deckViewCharts">
+						<tr>
+							<td><canvas id="costChart"></canvas></td>
+							<td><canvas id="typeChart"></canvas></td>
+							<td><canvas id="missionChart"></canvas></td>
+							<td style="vertical-align: middle; text-align: left;">
+								<div id="deckViewSummary"></div>
+							</td>
+						</tr>
+					</table>
+					<script>
+						function makeDoughnut(ctxId, label, labels, colors) {
+							return new Chart(document.getElementById(ctxId), {
+								type: 'doughnut',
+								data: {
+									labels: labels,
+									datasets: [{
+										label: label,
+										data: labels.map(function(){ return 0; }),
+										backgroundColor: colors,
+										hoverOffset: 4
+									}]
+								},
+								options: {
+									plugins: {
+										legend: {
+											display: true,
+											labels: { color: getLegendColor(), font: { size: 11 } }
+										}
+									}
+								}
+							});
+						}
+
+						costobj = makeDoughnut('costChart', 'Cost counter',
+							['0', '1', '2', '3', '4', '5', '6+'],
+							['rgb(230, 230, 230)', 'rgb(200, 200, 200)', 'rgb(170, 170, 170)', 'rgb(140, 140, 140)', 'rgb(110, 110, 110)', 'rgb(80, 80, 80)', 'rgb(50, 50, 50)']);
+
+						typeobj = makeDoughnut('typeChart', 'Type counter',
+							['キャラ', 'イベント', 'エンゲージ'],
+							['rgb(54, 162, 235)', 'rgb(255, 99, 132)', 'rgb(255, 205, 86)']);
+
+						missionobj = makeDoughnut('missionChart', 'Mission counter',
+							['A', 'B', 'C', 'D', 'E', 'F', '☆', '--'],
+							['rgb(255, 99, 132)', 'rgb(255, 159, 64)', 'rgb(255, 205, 86)', 'rgb(75, 192, 192)', 'rgb(54, 162, 235)', 'rgb(153, 102, 255)', 'rgb(255, 215, 0)', 'rgb(192, 192, 192)']);
+					</script>
+					<div id="deckViewTop"></div>
+					<div id="deckViewMain"></div>
+                </div>
+            </div>
+        </div>
+	</body>
+</html>
